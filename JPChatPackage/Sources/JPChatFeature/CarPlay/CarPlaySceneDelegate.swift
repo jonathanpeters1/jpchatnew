@@ -1,4 +1,5 @@
 import CarPlay
+import MediaPlayer
 
 public class CarPlaySceneDelegate: UIResponder, CPTemplateApplicationSceneDelegate {
     var interfaceController: CPInterfaceController?
@@ -9,7 +10,14 @@ public class CarPlaySceneDelegate: UIResponder, CPTemplateApplicationSceneDelega
         didConnect interfaceController: CPInterfaceController
     ) {
         self.interfaceController = interfaceController
+        
+        // Initialize AudioManager and configure audio session for CarPlay
+        Task { @MainActor in
+            AudioManager.shared.configureAudioSession()
+        }
+        
         setupCarPlayInterface()
+        setupNowPlayingWithPlaceholder()
     }
 
     public func templateApplicationScene(
@@ -49,6 +57,20 @@ public class CarPlaySceneDelegate: UIResponder, CPTemplateApplicationSceneDelega
         ])
 
         interfaceController?.setRootTemplate(tabBar, animated: true, completion: nil)
+    }
+
+    /// Sets up Now Playing with placeholder data when CarPlay connects
+    private func setupNowPlayingWithPlaceholder() {
+        // Set placeholder now playing info to show "Now Playing" tab is active
+        let placeholderInfo: [String: Any] = [
+            MPMediaItemPropertyTitle: "Sound Factory",
+            MPMediaItemPropertyArtist: "Select a channel to start",
+            MPMediaItemPropertyAlbumTitle: "Live Streaming",
+            MPNowPlayingInfoPropertyIsLiveStream: true,
+            MPNowPlayingInfoPropertyPlaybackRate: 0.0
+        ]
+        
+        MPNowPlayingInfoCenter.default().nowPlayingInfo = placeholderInfo
     }
 
     @MainActor
