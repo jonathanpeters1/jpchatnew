@@ -1,5 +1,8 @@
 import SwiftUI
 
+// MARK: - Content View
+// Main entry point for the JPChat application UI
+
 public struct ContentView: View {
     public init() {}
 
