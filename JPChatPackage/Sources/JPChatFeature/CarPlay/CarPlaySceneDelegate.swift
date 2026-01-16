@@ -1,14 +1,20 @@
 import CarPlay
 
 public class CarPlaySceneDelegate: UIResponder, CPTemplateApplicationSceneDelegate {
-    var interfaceController: CPInterfaceController?
-    private var channelListTemplate: CPListTemplate?
+    private var interfaceController: CPInterfaceController?
+    private var streamsTemplate: CPListTemplate?
+    private var chatTemplate: CPListTemplate?
 
     public func templateApplicationScene(
         _ templateApplicationScene: CPTemplateApplicationScene,
         didConnect interfaceController: CPInterfaceController
     ) {
         self.interfaceController = interfaceController
+        
+        Task { @MainActor in
+            CarPlayManager.shared.didConnect(interfaceController: interfaceController)
+        }
+        
         setupCarPlayInterface()
     }
 
@@ -17,42 +23,57 @@ public class CarPlaySceneDelegate: UIResponder, CPTemplateApplicationSceneDelega
         didDisconnect interfaceController: CPInterfaceController
     ) {
         self.interfaceController = nil
+        
+        Task { @MainActor in
+            CarPlayManager.shared.didDisconnect()
+        }
     }
 
     private func setupCarPlayInterface() {
-        // Create channel list items
-        let channelItems = DJChannel.allCases.map { channel -> CPListItem in
-            let item = CPListItem(
-                text: channel.displayName,
-                detailText: channel.vibe
-            )
-            item.handler = { [weak self] _, completion in
-                self?.playChannel(channel)
-                completion()
-            }
-            return item
+        let nowPlayingTemplate = CPNowPlayingTemplate.shared
+        
+        streamsTemplate = createStreamsTemplate()
+        chatTemplate = createChatTemplate()
+        
+        Task { @MainActor in
+            CarPlayManager.shared.setStreamsTemplate(streamsTemplate!)
+            CarPlayManager.shared.setChatTemplate(chatTemplate!)
         }
-
-        // Create list section
-        let section = CPListSection(items: channelItems)
-
-        // Create list template
-        channelListTemplate = CPListTemplate(
-            title: "Channels",
-            sections: [section]
-        )
-
-        // Create tab bar with channels and now playing
+        
         let tabBar = CPTabBarTemplate(templates: [
-            channelListTemplate!,
-            CPNowPlayingTemplate.shared
+            nowPlayingTemplate,
+            streamsTemplate!,
+            chatTemplate!
         ])
-
+        
         interfaceController?.setRootTemplate(tabBar, animated: true, completion: nil)
     }
-
-    @MainActor
-    private func playChannel(_ channel: DJChannel) {
-        AudioManager.shared.play(channel: channel)
+    
+    private func createStreamsTemplate() -> CPListTemplate {
+        let placeholderItem = CPListItem(
+            text: "Loading streams...",
+            detailText: "Please wait"
+        )
+        placeholderItem.isEnabled = false
+        
+        let section = CPListSection(items: [placeholderItem])
+        let template = CPListTemplate(title: "Streams", sections: [section])
+        template.tabSystemItem = .mostViewed
+        
+        return template
+    }
+    
+    private func createChatTemplate() -> CPListTemplate {
+        let placeholderItem = CPListItem(
+            text: "Chat messages",
+            detailText: "Coming soon"
+        )
+        placeholderItem.isEnabled = false
+        
+        let section = CPListSection(items: [placeholderItem])
+        let template = CPListTemplate(title: "Chat", sections: [section])
+        template.tabSystemItem = .contacts
+        
+        return template
     }
 }
